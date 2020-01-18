@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io;
+use std::io::prelude::*;
+
 #[derive(Debug)]
 pub struct Chip8 {
     memory: Vec<u8>,         // 4,096 bytes of RAM
@@ -36,7 +40,7 @@ const DISPLAY_W: usize = 64;
 const DISPLAY_H: usize = 32;
 
 impl Chip8 {
-    pub fn init() -> Chip8 {
+    fn init() -> Chip8 {
         let mut memory = HEX_SPRITES.to_vec();
         memory.resize(4096, 0);
 
@@ -51,6 +55,24 @@ impl Chip8 {
             stack: vec![0; 16],
             keyboard: vec![false; 16],
             display: vec![vec![false; DISPLAY_W]; DISPLAY_H],
+        }
+    }
+
+    pub fn load_rom(fname: &str) -> Result<Chip8, io::Error> {
+        let mut chip8 = Chip8::init();
+
+        let mut f = File::open(fname)?;
+        let mut buf = Vec::new();
+
+        f.read_to_end(&mut buf)?;
+        if buf.len() > 4096 - 0x200 {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ROM too big for RAM",
+            ))
+        } else {
+            chip8.memory[0x200..(0x200 + buf.len())].copy_from_slice(&buf[..]);
+            Ok(chip8)
         }
     }
 
