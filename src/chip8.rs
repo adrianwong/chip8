@@ -114,6 +114,13 @@ impl Chip8 {
             },
             _ => panic!("Unknown opcode: {:X?}", opcode),
         }
+
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
     }
 
     // 00E0 : Clear the display
@@ -1032,7 +1039,7 @@ mod test {
         c.v[0xA] = 0xCD;
         c.execute_opcode_internal(0xFA15);
 
-        assert_eq!(c.delay_timer, 0xCD);
+        assert_eq!(c.delay_timer, 0xCD - 1);
     }
 
     #[test]
@@ -1042,7 +1049,7 @@ mod test {
         c.v[0xA] = 0xCD;
         c.execute_opcode_internal(0xFA18);
 
-        assert_eq!(c.sound_timer, 0xCD);
+        assert_eq!(c.sound_timer, 0xCD - 1);
     }
 
     #[test]
