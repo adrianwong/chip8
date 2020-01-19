@@ -80,6 +80,16 @@ impl Chip8 {
         &self.display[..]
     }
 
+    pub fn set_key(&mut self, key: u8) {
+        self.keyboard[key as usize] = true;
+    }
+
+    pub fn reset_keys(&mut self) {
+        for key in &mut self.keyboard {
+            *key = false
+        }
+    }
+
     pub fn execute_opcode(&mut self) {
         // Instructions are 2 bytes long and are stored most
         // significant byte first
