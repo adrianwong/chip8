@@ -1,4 +1,5 @@
 mod chip8;
+mod emulator;
 
 use std::env;
 use std::io;
@@ -12,6 +13,8 @@ fn main() -> Result<(), io::Error> {
             "ROM file not specified. Usage: ./chip8 [rom_file]",
         ));
     }
+
+    emulator::run_emulator(&args[1])?;
 
     Ok(())
 }

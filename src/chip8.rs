@@ -36,8 +36,8 @@ const HEX_SPRITES: &[u8; 80] = &[
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
-const DISPLAY_W: usize = 64;
-const DISPLAY_H: usize = 32;
+pub const DISPLAY_W: usize = 64;
+pub const DISPLAY_H: usize = 32;
 
 impl Chip8 {
     fn init() -> Chip8 {
@@ -74,6 +74,10 @@ impl Chip8 {
             chip8.memory[0x200..(0x200 + buf.len())].copy_from_slice(&buf[..]);
             Ok(chip8)
         }
+    }
+
+    pub fn display(&self) -> &[bool] {
+        &self.display[..]
     }
 
     pub fn execute_opcode(&mut self) {
