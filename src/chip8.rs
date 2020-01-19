@@ -4,16 +4,16 @@ use std::io::prelude::*;
 
 #[derive(Debug)]
 pub struct Chip8 {
-    memory: Vec<u8>,         // 4,096 bytes of RAM
-    v: Vec<u8>,              // 16 general-purpose registers
-    i: u16,                  // 1 I-register
-    delay_timer: u8,         // Decrements at a rate of 60Hz
-    sound_timer: u8,         // Decrements at a rate of 60Hz
-    pc: u16,                 // Program counter
-    sp: u8,                  // Stack pointer
-    stack: Vec<u16>,         // 16 stack levels
-    keyboard: Vec<bool>,     // 16-key hexadecimal keypad
-    display: Vec<Vec<bool>>, // 64 x 32 monochrome display
+    memory: Vec<u8>,     // 4,096 bytes of RAM
+    v: Vec<u8>,          // 16 general-purpose registers
+    i: u16,              // 1 I-register
+    delay_timer: u8,     // Decrements at a rate of 60Hz
+    sound_timer: u8,     // Decrements at a rate of 60Hz
+    pc: u16,             // Program counter
+    sp: u8,              // Stack pointer
+    stack: Vec<u16>,     // 16 stack levels
+    keyboard: Vec<bool>, // 16-key hexadecimal keypad
+    display: Vec<bool>,  // 64 x 32 monochrome display
 }
 
 // Hexadecimal sprites. Stored in area of RAM reserved for interpreter
@@ -54,7 +54,7 @@ impl Chip8 {
             sp: 0,
             stack: vec![0; 16],
             keyboard: vec![false; 16],
-            display: vec![vec![false; DISPLAY_W]; DISPLAY_H],
+            display: vec![false; DISPLAY_W * DISPLAY_H],
         }
     }
 
@@ -147,10 +147,8 @@ impl Chip8 {
 
     // 00E0 : Clear the display
     fn cls(&mut self) {
-        for row in &mut self.display {
-            for col in row {
-                *col = false;
-            }
+        for displayed in &mut self.display {
+            *displayed = false;
         }
         self.pc += 2;
     }
@@ -353,11 +351,11 @@ impl Chip8 {
                     let xpos = ((self.v[x] as usize) + dx) % DISPLAY_W;
                     let ypos = ((self.v[y] as usize) + dy) % DISPLAY_H;
 
-                    let displayed = self.display[ypos][xpos];
+                    let displayed = self.display[ypos * DISPLAY_W + xpos];
                     if displayed {
                         self.v[0xF] = 1;
                     }
-                    self.display[ypos][xpos] = !displayed;
+                    self.display[ypos * DISPLAY_W + xpos] = !displayed;
                 }
             }
         }
@@ -507,25 +505,19 @@ mod test {
         assert_eq!(c.keyboard.len(), 16);
         assert!(c.keyboard.iter().all(|&x| x == false));
 
-        assert_eq!(c.display.len(), 32);
-        for row in &c.display {
-            assert_eq!(row.len(), 64);
-            assert!(row.iter().all(|&x| x == false));
-        }
+        assert_eq!(c.display.len(), 64 * 32);
     }
 
     #[test]
     fn test_cls() {
         let mut c = Chip8::init();
 
-        c.display[0][0] = true;
-        c.display[31][63] = true;
+        c.display[0] = true;
+        c.display[31 * DISPLAY_W + 63] = true;
 
         c.execute_opcode_internal(0x00E0);
 
-        for row in &c.display {
-            assert!(row.iter().all(|&x| x == false));
-        }
+        assert!(c.display.iter().all(|&x| x == false));
     }
 
     #[test]
@@ -893,30 +885,36 @@ mod test {
 
         c.execute_opcode_internal(0xDAB4);
 
-        for row in &c.display[..0x0A] {
-            assert!(row.iter().all(|&x| x == false));
-        }
+        let i = 0x0A * DISPLAY_W;
+        assert!(c.display[..i].iter().all(|&x| x == false));
 
-        for row in &c.display[(0x0A + 4)..] {
-            assert!(row.iter().all(|&x| x == false));
-        }
+        let i = (0x0A + 4) * DISPLAY_W;
+        assert!(c.display[i..].iter().all(|&x| x == false));
 
+        let i = 0x0A * DISPLAY_W + 0x05;
         assert_eq!(
-            &c.display[0x0A][0x05..(0x05 + 8)],
+            &c.display[i..(i + 8)],
             &[false, false, false, true, true, false, false, false]
         );
+
+        let i = 0x0B * DISPLAY_W + 0x05;
         assert_eq!(
-            &c.display[0x0B][0x05..(0x05 + 8)],
+            &c.display[i..(i + 8)],
             &[false, false, true, false, false, true, false, false]
         );
+
+        let i = 0x0C * DISPLAY_W + 0x05;
         assert_eq!(
-            &c.display[0x0C][0x05..(0x05 + 8)],
+            &c.display[i..(i + 8)],
             &[false, true, false, false, false, false, true, false]
         );
+
+        let i = 0x0D * DISPLAY_W + 0x05;
         assert_eq!(
-            &c.display[0x0D][0x05..(0x05 + 8)],
+            &c.display[i..(i + 8)],
             &[true, false, false, false, false, false, false, true]
         );
+
         assert_eq!(c.v[0xF], 0);
     }
 
@@ -931,8 +929,8 @@ mod test {
 
         c.execute_opcode_internal(0xDAB1);
 
-        assert_eq!(&c.display[0][60..], &[true, false, true, false]);
-        assert_eq!(&c.display[0][..4], &[true, false, true, true]);
+        assert_eq!(&c.display[60..DISPLAY_W], &[true, false, true, false]);
+        assert_eq!(&c.display[..4], &[true, false, true, true]);
         assert_eq!(c.v[0xF], 0);
     }
 
@@ -950,10 +948,18 @@ mod test {
 
         c.execute_opcode_internal(0xDAB4);
 
-        assert_eq!(&c.display[30][..4], &[true, false, false, false]);
-        assert_eq!(&c.display[31][..4], &[false, true, false, false]);
-        assert_eq!(&c.display[0][..4], &[false, false, true, false]);
-        assert_eq!(&c.display[1][..4], &[false, false, false, true]);
+        let i = 30 * DISPLAY_W;
+        assert_eq!(&c.display[i..(i + 4)], &[true, false, false, false]);
+
+        let i = 31 * DISPLAY_W;
+        assert_eq!(&c.display[i..(i + 4)], &[false, true, false, false]);
+
+        let i = 0 * DISPLAY_W;
+        assert_eq!(&c.display[i..(i + 4)], &[false, false, true, false]);
+
+        let i = 1 * DISPLAY_W;
+        assert_eq!(&c.display[i..(i + 4)], &[false, false, false, true]);
+
         assert_eq!(c.v[0xF], 0);
     }
 
@@ -965,12 +971,12 @@ mod test {
         c.memory[0x500] = 0b11000000;
         c.v[0xA] = 0;
         c.v[0xB] = 0;
-        c.display[0][0] = true;
+        c.display[0] = true;
 
         c.execute_opcode_internal(0xDAB1);
 
-        assert_eq!(c.display[0][0], false);
-        assert_eq!(c.display[0][1], true);
+        assert_eq!(c.display[0], false);
+        assert_eq!(c.display[1], true);
         assert_eq!(c.v[0xF], 1);
     }
 
